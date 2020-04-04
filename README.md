@@ -1,6 +1,7 @@
 # SACSANN
 Sequence-based predictor of chromosomal compartments
 
+
 ## Installation
 
 To install SACSANN, follow these steps:
@@ -10,18 +11,25 @@ To install SACSANN, follow these steps:
 git clone https://github.com/BlanchetteLab/SACSANN
 ```
 
-* Recommended way: create a virtual environment 
+* Go to the right folder `cd SACSANN/`
+
+* SACCSANN supports Python 3. The recommended way to use it is to create a virtual
+ environment :
 ```bash
 pyenv virtualenv 3.7.3 sacsann
 pyenv local sacsann
 ```
-* run `make install` to install the requirements
+* then run `make install` to install the requirements
 
 ## Run the demo
 
 You can run a demo of SACSANN on two mouse chromosomes by running `make run-demo`
 For more information on the available options, run :
 `python sacssann.py --help`
+
+## Input
+
+## Output
 
 ## License
 LAMPS is free software: you can redistribute it and/or modify it under the terms of the 
