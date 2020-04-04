@@ -1,0 +1,9 @@
+# IDE generated files
+.idea/
+
+# Python files
+.python-version
+__pycache__/
+
+# output folder
+/output/*
