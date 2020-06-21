@@ -52,10 +52,12 @@ transposable elements counts.
 * Predicted compartments for the input tests chromosomes can be found in the
  specified output folder (default is `output/`), with one file per chromosome
  
-* If the `save_model` argument is set to `True`, used models weights will be saved in
- the following files:
-  - `mlp_int_weights.csv`
-  - `mlp_top_weights.csv`
+* If the `save_model` argument is set to `True`, used models weights and
+ parameters will be saved in pickle format in the following files:
+  - `mlp_int_weights.p`
+  - `scaler.p`
+  - `mlp_top_weights.p`
+  - `final_scaler.p`
 
 ## License
 SACSANN is free software: you can redistribute it and/or modify it under the terms of

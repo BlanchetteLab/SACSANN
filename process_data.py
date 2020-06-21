@@ -4,6 +4,7 @@ Script to read and format data for SACCSANN training
 
 import csv
 import os
+import pickle
 import random
 
 from loguru import logger
@@ -79,6 +80,23 @@ def balance_classes(X, y):
     return X_new, y_new, selected_A, selected_B
 
 
+def format_test_data(features_directory, chromosomes, scaler=None):
+    X = []
+    chromosomes_length = []
+    for chromosome in chromosomes:
+        features_file = os.path.join(features_directory, f"chr{chromosome}.csv")
+        feature_data = list(csv.reader(open(features_file, "r"), delimiter=","))
+        number_of_bins = 0
+        for row in feature_data:
+            number_of_bins += 1
+            X.append([float(row[i]) for i in range(len(row))])
+        chromosomes_length.append(number_of_bins)
+    # Data normalization
+    if scaler is not None:
+        X = scaler.transform(X)
+    return X, chromosomes_length
+
+
 def get_data(
     labels_directory,
     features_directory,
@@ -86,6 +104,8 @@ def get_data(
     test_chromosomes,
     scaling,
     balance,
+    save_model=False,
+    output_folder=None,
 ):
     """
     Read and process input data
@@ -117,6 +137,8 @@ def get_data(
     if scaling:
         scaler = StandardScaler()
         X_train = scaler.fit_transform(X_train)
+        if save_model:
+            pickle.dump(scaler, open(os.path.join(output_folder, "scaler.p"), "wb"))
         if X_test != []:
             X_test = scaler.transform(X_test)
     else:
@@ -220,20 +242,6 @@ def build_proba_features(
         return X_train_balanced, X_proba_test
     else:
         return X_proba_train, X_proba_test
-
-
-def write_model(classifier, output_file):
-    """
-    Write weights and biases of the input classifier to the output file in csv format
-    """
-    coefficients = classifier.coefs_
-    bias = classifier.intercepts_
-    with open(output_file, "w") as file:
-        writer = csv.writer(
-            file, delimiter=",", quotechar="|", quoting=csv.QUOTE_MINIMAL
-        )
-        for i in range(len(coefficients)):
-            writer.writerow(coefficients[i] + bias[i])
 
 
 def write_predictions(y_pred, output_file):

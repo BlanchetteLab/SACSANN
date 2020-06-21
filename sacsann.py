@@ -1,7 +1,9 @@
 #! /usr/bin/env python3
 # -*- coding: utf8 -*-
 import argparse
+import csv
 import os
+import pickle
 import sys
 
 from loguru import logger
@@ -28,11 +30,18 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "labels_path",
-        help="Path to directory containing per chromosomes compartment labels",
+        "mode",
+        choices=["train_and_predict", "predict"],
+        default="predict",
+        help="Whether to train and predict or only predict with pre-trained weights",
     )
     parser.add_argument(
-        "features_path", help="Path to directory containing per chromosome features",
+        "features_path", help="Path to directory containing per chromosome features"
+    )
+    parser.add_argument(
+        "--labels_path",
+        help="Path to directory containing per chromosomes compartment labels",
+        default=None,
     )
     parser.add_argument("genome", help="Genome to analyze")
     parser.add_argument(
@@ -59,12 +68,73 @@ def parse_arguments():
         "--save_model",
         type=bool,
         default=False,
-        help="""Whether or not to save the trained model""",
+        help="Whether or not to save the trained model",
+    )
+    parser.add_argument(
+        "--intermediate_network_weights_path",
+        help="Path to intermediate network pre-trained weights. Only needed in "
+        "predict mode",
+        default=None,
+    )
+    parser.add_argument(
+        "--smoothing_network_weights_path",
+        help="Path to intermediate network pre-trained weights. Only needed in "
+        "predict mode",
+        default=None,
+    )
+    parser.add_argument(
+        "--intermediate_scaler_path",
+        help="Path to intermediate scaler parameters. Only needed in predict mode",
+        default=None,
+    )
+    parser.add_argument(
+        "--final_scaler_path",
+        help="Path to final scaler parameters. Only needed in predict mode",
+        default=None,
     )
     return parser.parse_args()
 
 
 def predict_compartments(
+    intermediate_classifier,
+    scaler,
+    scaler_top,
+    final_classifier,
+    test_chromosomes,
+    test_chromosomes_length,
+    features_directory,
+    output_folder,
+):
+    X_proba_test = []
+    for chromosome in test_chromosomes:
+        X = []
+        features_file = os.path.join(features_directory, f"chr{chromosome}.csv")
+        feature_data = list(csv.reader(open(features_file, "r"), delimiter=","))
+        for row in feature_data:
+            X.append([float(row[i]) for i in range(len(row))])
+        X = scaler.transform(X)
+        probas = intermediate_classifier.predict_proba(X)
+        X_proba_test = process_data.get_proba_features(
+            process_data.N_NEIGHBORS, probas, X_proba_test
+        )
+
+    X_test_proba = scaler_top.fit_transform(X_proba_test)
+    y_pred_top = final_classifier.predict(X_test_proba)
+    logger.info("Predictions done")
+
+    logger.info("Saving predictions...")
+    cum_length = 0
+    for i in range(len(test_chromosomes_length)):
+        chr_test = test_chromosomes[i]
+        process_data.write_predictions(
+            y_pred_top[cum_length : cum_length + test_chromosomes_length[i]],
+            os.path.join(output_folder, f"chr{chr_test}_predictions.csv"),
+        )
+        cum_length += test_chromosomes_length[i]
+    logger.info("Done")
+
+
+def train_and_predict_compartments(
     features_directory,
     train_chromosomes,
     test_chromosomes,
@@ -145,11 +215,16 @@ def predict_compartments(
     logger.info("Done")
 
     if save_model:
-        process_data.write_model(
-            intermediate_classifier, os.path.join(output_folder, "mlp_int_weights.csv")
+        pickle.dump(
+            scaler_top, open(os.path.join(output_folder, "final_scaler.p"), "wb")
         )
-        process_data.write_model(
-            final_classifier, os.path.join(output_folder, "mlp_top_weights.csv")
+        pickle.dump(
+            intermediate_classifier,
+            open(os.path.join(output_folder, "mlp_int_weights.p"), "wb"),
+        )
+        pickle.dump(
+            final_classifier,
+            open(os.path.join(output_folder, "mlp_top_weights.p"), "wb"),
         )
 
     if X_test != []:
@@ -160,12 +235,9 @@ def predict_compartments(
         logger.info(f"Final smoothed AUC score: {roc_auc_score(y_test, y_pred_top)}")
 
         # Save predictions
-        process_data.write_predictions(
-            y_pred_top[0 : test_chromosomes_length[0]],
-            os.path.join(output_folder, f"chr{test_chromosomes[0]}_predictions.csv"),
-        )
-        cum_length = test_chromosomes_length[0]
-        for i in range(1, len(test_chromosomes_length)):
+        logger.info("Saving predictions...")
+        cum_length = 0
+        for i in range(len(test_chromosomes_length)):
             chr_test = test_chromosomes[i]
             process_data.write_predictions(
                 y_pred_top[cum_length : cum_length + test_chromosomes_length[i]],
@@ -179,57 +251,90 @@ def run_sacssan(args):
     """
     Run SACSANN
     """
-    train_chromosomes = [int(i) for i in args.train_chromosomes[0].split(",")]
-    if args.test_chromosomes != []:
+    if args.test_chromosomes:
         test_chromosomes = [int(i) for i in args.test_chromosomes[0].split(",")]
     else:
         test_chromosomes = []
-    chromosomes = train_chromosomes + test_chromosomes
-    possible_chrs = process_data.get_chromosome_list(args.genome)
 
-    for i in range(len(chromosomes)):
-        if chromosomes[i] not in possible_chrs:
-            logger.warning(
-                f"Unvalid chromosome, "
-                f"possible chromosomes for the input genome are {possible_chrs}"
+    if args.mode == "predict":
+        if (
+            args.intermediate_network_weights_path is None
+            or args.smoothing_network_weights_path is None
+        ):
+            raise ValueError(
+                "Path to pre-trained weights need to be specified in predict mode"
             )
-            sys.exit()
+        intermediate_classifier = pickle.load(
+            open(args.intermediate_network_weights_path, "rb")
+        )
+        final_classifier = pickle.load(open(args.smoothing_network_weights_path, "rb"))
+        intermediate_scaler = pickle.load(open(args.intermediate_scaler_path, "rb"))
+        final_scaler = pickle.load(open(args.final_scaler_path, "rb"))
+        _, chromosomes_lengths = process_data.format_test_data(
+            args.features_path, test_chromosomes, scaler=intermediate_scaler
+        )
+        predict_compartments(
+            intermediate_classifier,
+            intermediate_scaler,
+            final_scaler,
+            final_classifier,
+            test_chromosomes,
+            chromosomes_lengths,
+            args.features_path,
+            args.output_folder,
+        )
 
-    if not os.path.exists(args.output_folder):
-        os.makedirs(args.output_folder)
+    else:
+        train_chromosomes = [int(i) for i in args.train_chromosomes[0].split(",")]
 
-    (
-        X_train,
-        y_train,
-        X_test,
-        y_test,
-        A_indexes,
-        B_indexes,
-        scaler,
-        testChrLen,
-    ) = process_data.get_data(
-        args.labels_path,
-        args.features_path,
-        train_chromosomes,
-        test_chromosomes,
-        scaling=True,
-        balance=True,
-    )
-    predict_compartments(
-        args.features_path,
-        train_chromosomes,
-        test_chromosomes,
-        testChrLen,
-        X_train,
-        y_train,
-        X_test,
-        y_test,
-        A_indexes,
-        B_indexes,
-        scaler,
-        args.output_folder,
-        args.save_model,
-    )
+        chromosomes = train_chromosomes + test_chromosomes
+        possible_chrs = process_data.get_chromosome_list(args.genome)
+
+        for i in range(len(chromosomes)):
+            if chromosomes[i] not in possible_chrs:
+                logger.warning(
+                    f"Unvalid chromosome, "
+                    f"possible chromosomes for the input genome are {possible_chrs}"
+                )
+                sys.exit()
+
+        if not os.path.exists(args.output_folder):
+            os.makedirs(args.output_folder)
+
+        (
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            A_indexes,
+            B_indexes,
+            scaler,
+            testChrLen,
+        ) = process_data.get_data(
+            args.labels_path,
+            args.features_path,
+            train_chromosomes,
+            test_chromosomes,
+            scaling=True,
+            balance=True,
+            save_model=args.save_model,
+            output_folder=args.output_folder,
+        )
+        train_and_predict_compartments(
+            args.features_path,
+            train_chromosomes,
+            test_chromosomes,
+            testChrLen,
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            A_indexes,
+            B_indexes,
+            scaler,
+            args.output_folder,
+            args.save_model,
+        )
 
 
 if __name__ == "__main__":
