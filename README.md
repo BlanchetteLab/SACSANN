@@ -2,7 +2,7 @@
 Sequence-based predictor of chromosomal compartments
 
 ## Overview
-The 'Sequence-based Annotator of Chromosomal Compartments by Stacked Artificial Neural Networks' or SACSANN is a machine learning approach to predicting A/B compartment annotations using only features derived from a reference genome. SACSANN has been test on both Linux and MacOS environments.
+The 'Sequence-based Annotator of Chromosomal Compartments by Stacked Artificial Neural Networks' or SACSANN is a machine learning approach to predicting A/B compartment annotations using only features derived from a reference genome. SACSANN has been tested on both Linux and MacOS environments.
 
 ## Software requirements
 
@@ -56,7 +56,7 @@ Example input/target files can be found in: `data/`
 
 For more information of available SACSANN options:
 ```
-python sacssann.py --help
+python sacsann.py --help
 ```
 
 ![Sacsann arguments](doc/sacsann_arguments.png)
@@ -71,13 +71,13 @@ python sacssann.py --help
 * For training, binary labels (i.e., A/B compartments) should also be in CSV files  (no header) with one row per genomic bin and one file per chromosome. Binary labels are interpreted by SACSANN as follows :
   - 0: bin included in a B compartment
   - 1: bin included in an A compartment
-  - See `data/labels` for examples
+  - See `data/labels/` for examples
  
 ## Output
 
 * Predicted compartments for the input tests chromosomes can be found in the specified output folder (default is `output/`), with one file per chromosome
  
-* If the `save_model` argument is set to `True` (`sacsann.py` optional argument), learned/used models weights and parameters will be saved in the pickle format in the following files:
+* If the `save_model` argument is set to `True` (`sacsann.py` optional argument), learned/used model weights and parameters will be saved in the pickle format in the following files:
   - `mlp_int_weights.p`
   - `scaler.p`
   - `mlp_top_weights.p`
