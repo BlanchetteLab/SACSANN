@@ -35,6 +35,7 @@ def parse_arguments():
         default="predict",
         help="Whether to train and predict or only predict with pre-trained weights",
     )
+    parser.add_argument("genome", help="Genome to analyze")
     parser.add_argument(
         "features_path", help="Path to directory containing per chromosome features"
     )
@@ -43,7 +44,6 @@ def parse_arguments():
         help="Path to directory containing per chromosomes compartment labels",
         default=None,
     )
-    parser.add_argument("genome", help="Genome to analyze")
     parser.add_argument(
         "--train_chromosomes",
         default=[],
