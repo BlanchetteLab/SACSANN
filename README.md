@@ -4,6 +4,8 @@ Sequence-based predictor of chromosomal compartments
 ## Overview
 The 'Sequence-based Annotator of Chromosomal Compartments by Stacked Artificial Neural Networks' or SACSANN is a machine learning approach to predicting A/B compartment annotations using only features derived from a reference genome. SACSANN has been tested on both Linux and MacOS environments.
 
+A preprint of the SACSANN manuscript is available on BioRxiv ([10.1101/2020.10.06.328039](https://doi.org/10.1101/2020.10.06.328039)).
+
 ## Software requirements
 
 1) Python 3 (v3.7.3 tested) - installed via pyenv (see below)
@@ -82,6 +84,11 @@ python sacsann.py --help
   - `scaler.p`
   - `mlp_top_weights.p`
   - `final_scaler.p`
+
+## Citing SACSANN
+If SACSANN was used in your analysis, please cite:
+
+Prost, J.A., Cameron, C.J.F. and Blanchette, M. (2020) SACSANN: identifying sequence-based determinants of chromosomal compartments. *bioRxiv*. doi: https://doi.org/10.1101/2020.10.06.328039
 
 ## License
 SACSANN is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation.
